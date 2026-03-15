@@ -1,9 +1,9 @@
-# GESP Official PDFs (Archived)
+# GESP Official PDFs (Full Archive)
 
-This repository stores official GESP PDF files collected from the CCF GESP site.
+This repository stores the full local archive imported from macOS Downloads/GESP_CPP.
 
-## Source links
-See `pdf_links.txt`.
+- Total PDF files: 84
+- Source import: ~/Downloads/GESP_CPP
 
 ## Integrity
-See `manifest.csv` for file size and SHA-256.
+See \ for file size and SHA-256.
