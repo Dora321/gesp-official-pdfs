@@ -8,7 +8,6 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Iterable
 from urllib.parse import quote
 
 import fitz
@@ -21,31 +20,11 @@ ASSETS_DIR = ROOT / "markdown_assets"
 DEFAULT_IMAGE_DPI = 144
 
 
-CODE_TOKEN_RE = re.compile(
-    r"("
-    r"#include|using\s+namespace|int\s+main|std::|cout|cin|printf|scanf|return|"
-    r"\b(for|while|if|else|switch|case|class|struct|void|long|double|string|vector|"
-    r"bool|char|const|auto)\b|"
-    r"->|::|==|<=|>=|!=|\+\+|--|&&|\|\||[{};]"
-    r")"
-)
-NUMBERED_CODE_RE = re.compile(r"^\s*\d{1,3}\s{1,4}\S")
-NUMBER_ONLY_RE = re.compile(r"^\s*\d{1,3}\s*$")
-QUESTION_RE = re.compile(r"^\s*(第\s*\d+\s*题|[A-D]\.|[（(]?[A-D][）).])")
-
-
 @dataclass(frozen=True)
 class PdfMeta:
     year: int | None
     month: int | None
     level: int | None
-
-
-@dataclass(frozen=True)
-class PageRender:
-    markdown: str
-    has_text: bool
-    code_block_count: int
 
 
 @dataclass(frozen=True)
@@ -58,8 +37,6 @@ class ConversionRecord:
     page_count: int
     image_count: int
     text_pages: int
-    code_block_count: int
-    code_image_count: int
 
 
 def slugify_filename(name: str) -> str:
@@ -96,10 +73,6 @@ def page_image_name(page_no: int) -> str:
     return f"page-{page_no:03d}.png"
 
 
-def code_image_name(page_no: int, index: int) -> str:
-    return f"code-{page_no:03d}-{index:02d}.png"
-
-
 def clean_text(text: str) -> str:
     text = unicodedata.normalize("NFC", text)
     text = text.replace("\x00", "").replace("\x0c", "\n")
@@ -134,225 +107,12 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def title_for_pdf(pdf_path: Path) -> str:
-    return pdf_path.stem
-
-
-def looks_like_code_line(line: str, in_code_block: bool = False) -> bool:
-    stripped = line.strip()
-    if not stripped:
-        return in_code_block
-    if QUESTION_RE.match(stripped) and not NUMBERED_CODE_RE.match(line):
-        return False
-    if NUMBERED_CODE_RE.match(line) and CODE_TOKEN_RE.search(stripped):
-        return True
-    if in_code_block:
-        if NUMBER_ONLY_RE.match(line):
-            return True
-        if NUMBERED_CODE_RE.match(line):
-            return True
-        if stripped in {"{", "}", "};", "};"}:
-            return True
-        if line.startswith((" ", "\t")) and CODE_TOKEN_RE.search(stripped):
-            return True
-    if stripped.startswith(("#include", "using namespace")):
-        return True
-    if re.match(r"^\s*(int|void|long|double|bool|char|string|auto|class|struct)\b", line) and CODE_TOKEN_RE.search(stripped):
-        return True
-    return False
-
-
-def normalize_code_block(lines: list[str]) -> str:
-    while lines and not lines[0].strip():
-        lines.pop(0)
-    while lines and not lines[-1].strip():
-        lines.pop()
-    nonblank = [line for line in lines if line.strip()]
-    if not nonblank:
-        return ""
-    min_indent = min(len(line) - len(line.lstrip(" ")) for line in nonblank)
-    return "\n".join(line[min_indent:] if len(line) >= min_indent else line for line in lines)
-
-
-def flush_paragraph(output: list[str], paragraph: list[str]) -> None:
-    if not paragraph:
-        return
-    while paragraph and not paragraph[0].strip():
-        paragraph.pop(0)
-    while paragraph and not paragraph[-1].strip():
-        paragraph.pop()
-    if paragraph:
-        output.extend(paragraph)
-        output.append("")
-    paragraph.clear()
-
-
-def flush_code(output: list[str], code_lines: list[str]) -> int:
-    code = normalize_code_block(code_lines)
-    code_lines.clear()
-    if not code:
-        return 0
-    output.append(fenced(code, "cpp"))
-    output.append("")
-    return 1
-
-
-def render_page_content(text: str) -> PageRender:
-    text = clean_text(text)
-    if not text:
-        return PageRender("本页未提取到可用文本，请以页面图为准。", False, 0)
-
-    output: list[str] = []
-    paragraph: list[str] = []
-    code_lines: list[str] = []
-    in_code_block = False
-    code_block_count = 0
-
-    for line in text.splitlines():
-        is_code = looks_like_code_line(line, in_code_block)
-        if is_code:
-            flush_paragraph(output, paragraph)
-            code_lines.append(line)
-            in_code_block = True
-            continue
-
-        if in_code_block:
-            if not line.strip():
-                code_lines.append(line)
-                continue
-            code_block_count += flush_code(output, code_lines)
-            in_code_block = False
-
-        paragraph.append(line)
-
-    if in_code_block:
-        code_block_count += flush_code(output, code_lines)
-    flush_paragraph(output, paragraph)
-
-    rendered = "\n".join(output).rstrip()
-    return PageRender(rendered, True, code_block_count)
-
-
-def block_text(block: tuple) -> str:
-    return str(block[4]).replace("\x00", "").strip()
-
-
-def is_blank_anchor(block: tuple) -> bool:
-    x0, y0, x1, y1, text = block[:5]
-    return not str(text).strip() and (x1 - x0) <= 8 and 6 <= (y1 - y0) <= 24
-
-
-def find_code_image_anchors(page: fitz.Page) -> list[tuple[float, float]]:
-    blocks = page.get_text("blocks", sort=True)
-    nonblank = [block for block in blocks if block_text(block)]
-    anchors: list[tuple[float, float]] = []
-
-    for block in blocks:
-        if not is_blank_anchor(block):
-            continue
-        _, y0, _, y1, _ = block[:5]
-        previous_blocks = [candidate for candidate in nonblank if candidate[3] < y0]
-        next_blocks = [candidate for candidate in nonblank if candidate[1] > y1]
-        if not previous_blocks:
-            continue
-
-        previous_y1 = max(candidate[3] for candidate in previous_blocks)
-        next_y0 = min((candidate[1] for candidate in next_blocks), default=page.rect.height - 42)
-        crop_y0 = max(previous_y1 + 6, y0 - 80)
-        crop_y1 = min(next_y0 - 8, y1 + 120, page.rect.height - 34)
-        if crop_y1 - crop_y0 >= 28:
-            anchors.append((crop_y0, crop_y1))
-
-    merged: list[tuple[float, float]] = []
-    for y0, y1 in sorted(anchors):
-        if merged and y0 - merged[-1][1] < 12:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], y1))
-        else:
-            merged.append((y0, y1))
-    return merged
-
-
-def render_code_images(
-    page: fitz.Page,
-    *,
-    page_no: int,
-    asset_dir: Path,
-    title: str,
-    image_dpi: int,
-    overwrite_images: bool,
-) -> list[tuple[float, str]]:
-    anchors = find_code_image_anchors(page)
-    snippets: list[tuple[float, str]] = []
-    zoom = image_dpi / 72.0
-    matrix = fitz.Matrix(zoom, zoom)
-    clip_x0 = 52
-    clip_x1 = page.rect.width - 52
-
-    for index, (y0, y1) in enumerate(anchors, start=1):
-        image_path = asset_dir / code_image_name(page_no, index)
-        if overwrite_images or not image_path.exists() or image_path.stat().st_size == 0:
-            clip = fitz.Rect(clip_x0, y0, clip_x1, y1)
-            pix = page.get_pixmap(matrix=matrix, clip=clip, alpha=False)
-            pix.save(image_path)
-        rel_image = Path("..") / "markdown_assets" / asset_dir.name / image_path.name
-        markdown = f"![{title} 第 {page_no} 页代码区域 {index}]({md_link(rel_image.as_posix())})"
-        snippets.append((y0, markdown))
-
-    for stale_image in asset_dir.glob(f"code-{page_no:03d}-*.png"):
-        keep = {asset_dir / code_image_name(page_no, index) for index in range(1, len(anchors) + 1)}
-        if stale_image not in keep:
-            stale_image.unlink()
-
-    return snippets
-
-
-def render_page_blocks_with_images(page: fitz.Page, code_images: list[tuple[float, str]]) -> PageRender:
-    blocks = [block for block in page.get_text("blocks", sort=True) if block_text(block)]
-    events: list[tuple[float, str, str]] = []
-    for block in blocks:
-        events.append((float(block[1]), "text", clean_text(str(block[4]))))
-    for y0, markdown in code_images:
-        events.append((y0, "image", markdown))
-
-    parts: list[str] = []
-    text_buffer: list[str] = []
-    code_block_count = 0
-    has_text = False
-
-    for _, kind, value in sorted(events, key=lambda event: (event[0], 0 if event[1] == "text" else 1)):
-        if kind == "text":
-            if value:
-                text_buffer.append(value)
-            continue
-
-        if text_buffer:
-            rendered = render_page_content("\n".join(text_buffer))
-            if rendered.has_text:
-                has_text = True
-            code_block_count += rendered.code_block_count
-            parts.append(rendered.markdown)
-            text_buffer.clear()
-        parts.extend([value, ""])
-
-    if text_buffer:
-        rendered = render_page_content("\n".join(text_buffer))
-        if rendered.has_text:
-            has_text = True
-        code_block_count += rendered.code_block_count
-        parts.append(rendered.markdown)
-
-    markdown = "\n\n".join(part.rstrip() for part in parts if part.rstrip()).rstrip()
-    if not markdown:
-        markdown = "本页未提取到可用文本，请以页面图为准。"
-    return PageRender(markdown, has_text, code_block_count)
-
-
 def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> ConversionRecord:
     MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    title = title_for_pdf(pdf_path)
-    safe_stem = slugify_filename(pdf_path.stem)
+    title = pdf_path.stem
+    safe_stem = slugify_filename(title)
     md_path = MARKDOWN_DIR / f"{safe_stem}.md"
     asset_dir = ASSETS_DIR / safe_stem
     asset_dir.mkdir(parents=True, exist_ok=True)
@@ -361,8 +121,6 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
     meta = parse_filename_meta(pdf_path.name)
     matrix = fitz.Matrix(image_dpi / 72.0, image_dpi / 72.0)
     text_pages = 0
-    code_blocks = 0
-    code_images = 0
     page_image_paths: list[Path] = []
 
     parts: list[str] = [
@@ -370,10 +128,10 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
         "",
         f"- 原始 PDF: [pdfs/{pdf_path.name}]({md_link('../pdfs/' + pdf_path.name)})",
         f"- 页数: {doc.page_count}",
-        f"- 转换方式: PyMuPDF 文本提取 + 代码片段重排 + 每页 {image_dpi} DPI PNG 页面图",
+        f"- 转换方式: 每页 {image_dpi} DPI 原卷面图片 + 折叠的辅助文本层",
         f"- PDF SHA-256: `{sha256_file(pdf_path)}`",
         "",
-        "> 说明: Markdown 中保留每页页面图作为排版与图形校验；正文按阅读顺序排版，检测到的代码片段会单独渲染为代码块。复杂公式、表格、插图或排版细节请以页面图为准。",
+        "> 说明: 页面图片是主内容，完整保留原卷面的题干、代码、表格、图形和排版。PDF 文本层可能缺失题目代码，因此提取文本只作为搜索辅助，默认折叠显示。",
         "",
     ]
 
@@ -387,20 +145,11 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
             pix = page.get_pixmap(matrix=matrix, alpha=False)
             pix.save(image_path)
 
-        code_image_markdown = render_code_images(
-            page,
-            page_no=page_no,
-            asset_dir=asset_dir,
-            title=title,
-            image_dpi=image_dpi,
-            overwrite_images=overwrite_images,
-        )
-        code_images += len(code_image_markdown)
-
-        rendered = render_page_blocks_with_images(page, code_image_markdown)
-        if rendered.has_text:
+        text = clean_text(page.get_text("text", sort=True))
+        if text:
             text_pages += 1
-        code_blocks += rendered.code_block_count
+        else:
+            text = "本页未提取到可用文本，请以页面图片为准。"
 
         rel_image = Path("..") / "markdown_assets" / safe_stem / image_path.name
         parts.extend(
@@ -409,9 +158,12 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
                 "",
                 f"![{title} 第 {page_no} 页]({md_link(rel_image.as_posix())})",
                 "",
-                "### 页面内容",
+                "<details>",
+                "<summary>提取文本（辅助搜索，可能缺少图片/代码内容）</summary>",
                 "",
-                rendered.markdown,
+                fenced(text, "text"),
+                "",
+                "</details>",
                 "",
             ]
         )
@@ -419,6 +171,8 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
     for stale_image in asset_dir.glob("page-*.png"):
         if stale_image not in page_image_paths:
             stale_image.unlink()
+    for stale_code_image in asset_dir.glob("code-*.png"):
+        stale_code_image.unlink()
 
     md_path.write_text("\n".join(parts).rstrip() + "\n", encoding="utf-8")
     page_count = doc.page_count
@@ -433,8 +187,6 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
         page_count=page_count,
         image_count=len(page_image_paths),
         text_pages=text_pages,
-        code_block_count=code_blocks,
-        code_image_count=code_images,
     )
 
 
@@ -444,15 +196,15 @@ def meta_label(meta: PdfMeta) -> str:
     return f"{meta.year} 年 {meta.month} 月 / C++ {meta.level} 级"
 
 
-def generate_index(records: Iterable[ConversionRecord]) -> None:
+def generate_index(records: list[ConversionRecord]) -> None:
     records = sorted(records, key=lambda record: sort_key(record.pdf_path))
     lines: list[str] = [
         "# GESP 真题 Markdown 索引",
         "",
-        "本目录按年份、月份、等级列出 `pdfs/` 中每份真题对应的 Markdown 文件。每份 Markdown 都包含原 PDF 链接、逐页截图、可阅读正文和独立渲染的代码片段。",
+        "本目录按年份、月份、等级列出 `pdfs/` 中每份真题对应的 Markdown 文件。Markdown 以原卷面页面图为主，确保题目代码和图形不丢失；提取文本仅作为折叠的搜索辅助。",
         "",
-        "| 年份 | 月份 | 等级 | Markdown | PDF | 页面图 | 页数 | 代码块 | 代码裁图 |",
-        "| --- | ---: | ---: | --- | --- | --- | ---: | ---: | ---: |",
+        "| 年份 | 月份 | 等级 | Markdown | PDF | 页面图 | 页数 |",
+        "| --- | ---: | ---: | --- | --- | --- | ---: |",
     ]
     for record in records:
         meta = record.meta
@@ -462,10 +214,7 @@ def generate_index(records: Iterable[ConversionRecord]) -> None:
         md = f"[{record.title}]({md_link(record.md_path.name)})"
         pdf = f"[PDF]({md_link('../pdfs/' + record.pdf_path.name)})"
         assets = f"[页面图]({md_link('../markdown_assets/' + record.asset_dir.name + '/')})"
-        lines.append(
-            f"| {year} | {month} | {level} | {md} | {pdf} | {assets} | "
-            f"{record.page_count} | {record.code_block_count} | {record.code_image_count} |"
-        )
+        lines.append(f"| {year} | {month} | {level} | {md} | {pdf} | {assets} | {record.page_count} |")
 
     (MARKDOWN_DIR / "INDEX.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
@@ -475,12 +224,12 @@ def generate_notes(image_dpi: int) -> None:
 
 ## 目标
 
-将 `pdfs/` 目录中的 GESP C++ 真题 PDF 转换为对应的 Markdown 文件，并为每一页导出 PNG 页面图，保证文本可检索、代码可阅读、页面可核验、图形和公式不丢失。
+将 `pdfs/` 目录中的 GESP C++ 真题 PDF 转换为对应的 Markdown 文件，并保证题目代码、图形、表格和原始排版可见。
 
 ## 输出结构
 
 - `markdown/<试卷名>.md`: 每份 PDF 对应一份 Markdown。
-- `markdown_assets/<试卷名>/page-XXX.png`: 每页 PDF 的页面图。
+- `markdown_assets/<试卷名>/page-XXX.png`: 每页 PDF 的原卷面页面图。
 - `markdown/INDEX.md`: Markdown 索引。
 - `markdown/CONVERSION_REPORT.md`: 本次转换统计报告。
 
@@ -492,19 +241,14 @@ def generate_notes(image_dpi: int) -> None:
 
 1. 扫描 `pdfs/*.pdf`。
 2. 使用 PyMuPDF 打开 PDF。
-3. 对每页执行文本提取: `page.get_text("text", sort=True)`。
-4. 按题面特征识别代码行，将连续代码片段单独渲染为 `cpp` fenced code block。
-5. 对 PDF 文本层缺失、但页面中存在的代码区域，利用空文本锚点裁剪对应页面片段并插入题干附近。
-6. 对每页渲染 `{image_dpi}` DPI PNG 页面图。
-7. 生成包含元信息、页面图、可阅读正文、代码块和代码裁图的 Markdown。
+3. 将每页渲染为 `{image_dpi}` DPI PNG，作为 Markdown 的主内容。
+4. 提取 PDF 文本层，放入折叠区作为搜索辅助。
 
 ## 质量说明
 
-- Markdown 正文用于搜索、复制和快速阅读。
-- 检测到的代码片段会从整页文本中拆出，单独显示为代码块，避免整页 `text` 代码块导致的横向滚动和代码不可见问题。
-- 如果题目代码在 PDF 中不是文本层而是图片/矢量内容，脚本会裁剪该代码区域并插入 Markdown，确保题目对应代码可见。
-- 页面图用于保留原始版式、公式、表格、代码缩进、插图和题面排版。
-- 如果文本提取与页面图存在差异，以页面图和原始 PDF 为准。
+- 页面图片是主内容，完整保留题目代码、表格、图形、公式和版式。
+- PDF 文本层常常缺失代码，尤其是作为图片/矢量对象嵌入的代码块；因此提取文本不再作为主阅读内容。
+- Markdown 中的折叠文本仅用于搜索、复制和粗略定位，若与页面图不一致，以页面图和原始 PDF 为准。
 - 默认复用已存在的页面图，只在页面图缺失或指定 `--overwrite-images` 时重新渲染。
 
 ## 复现
@@ -522,16 +266,12 @@ py scripts/convert_pdfs_to_markdown.py --overwrite-images
     (MARKDOWN_DIR / "CONVERSION_NOTES.md").write_text(content, encoding="utf-8")
 
 
-def generate_report(records: Iterable[ConversionRecord], image_dpi: int) -> None:
+def generate_report(records: list[ConversionRecord], image_dpi: int) -> None:
     records = sorted(records, key=lambda record: sort_key(record.pdf_path))
     pdf_count = len(list(PDF_DIR.glob("*.pdf")))
-    per_pdf_markdown_count = len(records)
-    extra_markdown_count = 3
     total_images = sum(record.image_count for record in records)
     total_pages = sum(record.page_count for record in records)
-    full_text_pages = sum(record.text_pages for record in records)
-    total_code_blocks = sum(record.code_block_count for record in records)
-    total_code_images = sum(record.code_image_count for record in records)
+    text_pages = sum(record.text_pages for record in records)
     missing_markdown = sorted({p.stem for p in PDF_DIR.glob("*.pdf")} - {r.md_path.stem for r in records})
 
     lines: list[str] = [
@@ -539,28 +279,25 @@ def generate_report(records: Iterable[ConversionRecord], image_dpi: int) -> None
         "",
         f"- 转换日期: {date.today().isoformat()}",
         f"- PDF 数量: {pdf_count}",
-        f"- 试卷 Markdown 数量: {per_pdf_markdown_count}",
-        f"- 索引/说明/报告 Markdown 数量: {extra_markdown_count}",
+        f"- 试卷 Markdown 数量: {len(records)}",
+        f"- 索引/说明/报告 Markdown 数量: 3",
         f"- PDF 总页数: {total_pages}",
         f"- 页面图数量: {total_images}",
         f"- 页面图 DPI: {image_dpi}",
-        f"- 成功提取文本的页面数: {full_text_pages}",
-        f"- 独立渲染代码块数量: {total_code_blocks}",
-        f"- 代码区域裁图数量: {total_code_images}",
+        f"- 成功提取文本的页面数: {text_pages}",
         f"- 缺失 Markdown: {'无' if not missing_markdown else ', '.join(missing_markdown)}",
         "",
         "## 明细",
         "",
-        "| 试卷 | 元信息 | 页数 | 文本页 | 页面图 | 代码块 | 代码裁图 | Markdown |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| 试卷 | 元信息 | 页数 | 文本页 | 页面图 | Markdown |",
+        "| --- | --- | ---: | ---: | ---: | --- |",
     ]
 
     for record in records:
         md = f"[{record.md_path.name}]({md_link(record.md_path.name)})"
         lines.append(
             f"| {record.title} | {meta_label(record.meta)} | {record.page_count} | "
-            f"{record.text_pages} | {record.image_count} | {record.code_block_count} | "
-            f"{record.code_image_count} | {md} |"
+            f"{record.text_pages} | {record.image_count} | {md} |"
         )
 
     (MARKDOWN_DIR / "CONVERSION_REPORT.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
@@ -581,7 +318,7 @@ def convert_all(*, image_dpi: int, overwrite_images: bool) -> list[ConversionRec
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Convert GESP official PDFs to high-quality Markdown.")
+    parser = argparse.ArgumentParser(description="Convert GESP official PDFs to Markdown.")
     parser.add_argument("--image-dpi", type=int, default=DEFAULT_IMAGE_DPI, help="PNG render DPI for page images.")
     parser.add_argument("--overwrite-images", action="store_true", help="Regenerate all page images.")
     return parser.parse_args()
@@ -591,12 +328,7 @@ def main() -> None:
     args = parse_args()
     records = convert_all(image_dpi=args.image_dpi, overwrite_images=args.overwrite_images)
     total_pages = sum(record.page_count for record in records)
-    total_code_blocks = sum(record.code_block_count for record in records)
-    total_code_images = sum(record.code_image_count for record in records)
-    print(
-        f"Converted {len(records)} PDFs ({total_pages} pages, {total_code_blocks} code blocks, "
-        f"{total_code_images} code images) into {MARKDOWN_DIR}"
-    )
+    print(f"Converted {len(records)} PDFs ({total_pages} pages) into {MARKDOWN_DIR}")
 
 
 if __name__ == "__main__":
