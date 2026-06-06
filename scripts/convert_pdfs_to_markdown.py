@@ -59,6 +59,7 @@ class ConversionRecord:
     image_count: int
     text_pages: int
     code_block_count: int
+    code_image_count: int
 
 
 def slugify_filename(name: str) -> str:
@@ -93,6 +94,10 @@ def md_link(target: str) -> str:
 
 def page_image_name(page_no: int) -> str:
     return f"page-{page_no:03d}.png"
+
+
+def code_image_name(page_no: int, index: int) -> str:
+    return f"code-{page_no:03d}-{index:02d}.png"
 
 
 def clean_text(text: str) -> str:
@@ -228,6 +233,120 @@ def render_page_content(text: str) -> PageRender:
     return PageRender(rendered, True, code_block_count)
 
 
+def block_text(block: tuple) -> str:
+    return str(block[4]).replace("\x00", "").strip()
+
+
+def is_blank_anchor(block: tuple) -> bool:
+    x0, y0, x1, y1, text = block[:5]
+    return not str(text).strip() and (x1 - x0) <= 8 and 6 <= (y1 - y0) <= 24
+
+
+def find_code_image_anchors(page: fitz.Page) -> list[tuple[float, float]]:
+    blocks = page.get_text("blocks", sort=True)
+    nonblank = [block for block in blocks if block_text(block)]
+    anchors: list[tuple[float, float]] = []
+
+    for block in blocks:
+        if not is_blank_anchor(block):
+            continue
+        _, y0, _, y1, _ = block[:5]
+        previous_blocks = [candidate for candidate in nonblank if candidate[3] < y0]
+        next_blocks = [candidate for candidate in nonblank if candidate[1] > y1]
+        if not previous_blocks:
+            continue
+
+        previous_y1 = max(candidate[3] for candidate in previous_blocks)
+        next_y0 = min((candidate[1] for candidate in next_blocks), default=page.rect.height - 42)
+        crop_y0 = max(previous_y1 + 6, y0 - 80)
+        crop_y1 = min(next_y0 - 8, y1 + 120, page.rect.height - 34)
+        if crop_y1 - crop_y0 >= 28:
+            anchors.append((crop_y0, crop_y1))
+
+    merged: list[tuple[float, float]] = []
+    for y0, y1 in sorted(anchors):
+        if merged and y0 - merged[-1][1] < 12:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], y1))
+        else:
+            merged.append((y0, y1))
+    return merged
+
+
+def render_code_images(
+    page: fitz.Page,
+    *,
+    page_no: int,
+    asset_dir: Path,
+    title: str,
+    image_dpi: int,
+    overwrite_images: bool,
+) -> list[tuple[float, str]]:
+    anchors = find_code_image_anchors(page)
+    snippets: list[tuple[float, str]] = []
+    zoom = image_dpi / 72.0
+    matrix = fitz.Matrix(zoom, zoom)
+    clip_x0 = 52
+    clip_x1 = page.rect.width - 52
+
+    for index, (y0, y1) in enumerate(anchors, start=1):
+        image_path = asset_dir / code_image_name(page_no, index)
+        if overwrite_images or not image_path.exists() or image_path.stat().st_size == 0:
+            clip = fitz.Rect(clip_x0, y0, clip_x1, y1)
+            pix = page.get_pixmap(matrix=matrix, clip=clip, alpha=False)
+            pix.save(image_path)
+        rel_image = Path("..") / "markdown_assets" / asset_dir.name / image_path.name
+        markdown = f"![{title} 第 {page_no} 页代码区域 {index}]({md_link(rel_image.as_posix())})"
+        snippets.append((y0, markdown))
+
+    for stale_image in asset_dir.glob(f"code-{page_no:03d}-*.png"):
+        keep = {asset_dir / code_image_name(page_no, index) for index in range(1, len(anchors) + 1)}
+        if stale_image not in keep:
+            stale_image.unlink()
+
+    return snippets
+
+
+def render_page_blocks_with_images(page: fitz.Page, code_images: list[tuple[float, str]]) -> PageRender:
+    blocks = [block for block in page.get_text("blocks", sort=True) if block_text(block)]
+    events: list[tuple[float, str, str]] = []
+    for block in blocks:
+        events.append((float(block[1]), "text", clean_text(str(block[4]))))
+    for y0, markdown in code_images:
+        events.append((y0, "image", markdown))
+
+    parts: list[str] = []
+    text_buffer: list[str] = []
+    code_block_count = 0
+    has_text = False
+
+    for _, kind, value in sorted(events, key=lambda event: (event[0], 0 if event[1] == "text" else 1)):
+        if kind == "text":
+            if value:
+                text_buffer.append(value)
+            continue
+
+        if text_buffer:
+            rendered = render_page_content("\n".join(text_buffer))
+            if rendered.has_text:
+                has_text = True
+            code_block_count += rendered.code_block_count
+            parts.append(rendered.markdown)
+            text_buffer.clear()
+        parts.extend([value, ""])
+
+    if text_buffer:
+        rendered = render_page_content("\n".join(text_buffer))
+        if rendered.has_text:
+            has_text = True
+        code_block_count += rendered.code_block_count
+        parts.append(rendered.markdown)
+
+    markdown = "\n\n".join(part.rstrip() for part in parts if part.rstrip()).rstrip()
+    if not markdown:
+        markdown = "本页未提取到可用文本，请以页面图为准。"
+    return PageRender(markdown, has_text, code_block_count)
+
+
 def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> ConversionRecord:
     MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
@@ -243,6 +362,7 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
     matrix = fitz.Matrix(image_dpi / 72.0, image_dpi / 72.0)
     text_pages = 0
     code_blocks = 0
+    code_images = 0
     page_image_paths: list[Path] = []
 
     parts: list[str] = [
@@ -267,7 +387,17 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
             pix = page.get_pixmap(matrix=matrix, alpha=False)
             pix.save(image_path)
 
-        rendered = render_page_content(page.get_text("text", sort=True))
+        code_image_markdown = render_code_images(
+            page,
+            page_no=page_no,
+            asset_dir=asset_dir,
+            title=title,
+            image_dpi=image_dpi,
+            overwrite_images=overwrite_images,
+        )
+        code_images += len(code_image_markdown)
+
+        rendered = render_page_blocks_with_images(page, code_image_markdown)
         if rendered.has_text:
             text_pages += 1
         code_blocks += rendered.code_block_count
@@ -304,6 +434,7 @@ def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> Co
         image_count=len(page_image_paths),
         text_pages=text_pages,
         code_block_count=code_blocks,
+        code_image_count=code_images,
     )
 
 
@@ -320,8 +451,8 @@ def generate_index(records: Iterable[ConversionRecord]) -> None:
         "",
         "本目录按年份、月份、等级列出 `pdfs/` 中每份真题对应的 Markdown 文件。每份 Markdown 都包含原 PDF 链接、逐页截图、可阅读正文和独立渲染的代码片段。",
         "",
-        "| 年份 | 月份 | 等级 | Markdown | PDF | 页面图 | 页数 | 代码块 |",
-        "| --- | ---: | ---: | --- | --- | --- | ---: | ---: |",
+        "| 年份 | 月份 | 等级 | Markdown | PDF | 页面图 | 页数 | 代码块 | 代码裁图 |",
+        "| --- | ---: | ---: | --- | --- | --- | ---: | ---: | ---: |",
     ]
     for record in records:
         meta = record.meta
@@ -333,7 +464,7 @@ def generate_index(records: Iterable[ConversionRecord]) -> None:
         assets = f"[页面图]({md_link('../markdown_assets/' + record.asset_dir.name + '/')})"
         lines.append(
             f"| {year} | {month} | {level} | {md} | {pdf} | {assets} | "
-            f"{record.page_count} | {record.code_block_count} |"
+            f"{record.page_count} | {record.code_block_count} | {record.code_image_count} |"
         )
 
     (MARKDOWN_DIR / "INDEX.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
@@ -363,13 +494,15 @@ def generate_notes(image_dpi: int) -> None:
 2. 使用 PyMuPDF 打开 PDF。
 3. 对每页执行文本提取: `page.get_text("text", sort=True)`。
 4. 按题面特征识别代码行，将连续代码片段单独渲染为 `cpp` fenced code block。
-5. 对每页渲染 `{image_dpi}` DPI PNG 页面图。
-6. 生成包含元信息、页面图、可阅读正文和代码块的 Markdown。
+5. 对 PDF 文本层缺失、但页面中存在的代码区域，利用空文本锚点裁剪对应页面片段并插入题干附近。
+6. 对每页渲染 `{image_dpi}` DPI PNG 页面图。
+7. 生成包含元信息、页面图、可阅读正文、代码块和代码裁图的 Markdown。
 
 ## 质量说明
 
 - Markdown 正文用于搜索、复制和快速阅读。
 - 检测到的代码片段会从整页文本中拆出，单独显示为代码块，避免整页 `text` 代码块导致的横向滚动和代码不可见问题。
+- 如果题目代码在 PDF 中不是文本层而是图片/矢量内容，脚本会裁剪该代码区域并插入 Markdown，确保题目对应代码可见。
 - 页面图用于保留原始版式、公式、表格、代码缩进、插图和题面排版。
 - 如果文本提取与页面图存在差异，以页面图和原始 PDF 为准。
 - 默认复用已存在的页面图，只在页面图缺失或指定 `--overwrite-images` 时重新渲染。
@@ -398,6 +531,7 @@ def generate_report(records: Iterable[ConversionRecord], image_dpi: int) -> None
     total_pages = sum(record.page_count for record in records)
     full_text_pages = sum(record.text_pages for record in records)
     total_code_blocks = sum(record.code_block_count for record in records)
+    total_code_images = sum(record.code_image_count for record in records)
     missing_markdown = sorted({p.stem for p in PDF_DIR.glob("*.pdf")} - {r.md_path.stem for r in records})
 
     lines: list[str] = [
@@ -412,19 +546,21 @@ def generate_report(records: Iterable[ConversionRecord], image_dpi: int) -> None
         f"- 页面图 DPI: {image_dpi}",
         f"- 成功提取文本的页面数: {full_text_pages}",
         f"- 独立渲染代码块数量: {total_code_blocks}",
+        f"- 代码区域裁图数量: {total_code_images}",
         f"- 缺失 Markdown: {'无' if not missing_markdown else ', '.join(missing_markdown)}",
         "",
         "## 明细",
         "",
-        "| 试卷 | 元信息 | 页数 | 文本页 | 页面图 | 代码块 | Markdown |",
-        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+        "| 试卷 | 元信息 | 页数 | 文本页 | 页面图 | 代码块 | 代码裁图 | Markdown |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
 
     for record in records:
         md = f"[{record.md_path.name}]({md_link(record.md_path.name)})"
         lines.append(
             f"| {record.title} | {meta_label(record.meta)} | {record.page_count} | "
-            f"{record.text_pages} | {record.image_count} | {record.code_block_count} | {md} |"
+            f"{record.text_pages} | {record.image_count} | {record.code_block_count} | "
+            f"{record.code_image_count} | {md} |"
         )
 
     (MARKDOWN_DIR / "CONVERSION_REPORT.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
@@ -456,7 +592,11 @@ def main() -> None:
     records = convert_all(image_dpi=args.image_dpi, overwrite_images=args.overwrite_images)
     total_pages = sum(record.page_count for record in records)
     total_code_blocks = sum(record.code_block_count for record in records)
-    print(f"Converted {len(records)} PDFs ({total_pages} pages, {total_code_blocks} code blocks) into {MARKDOWN_DIR}")
+    total_code_images = sum(record.code_image_count for record in records)
+    print(
+        f"Converted {len(records)} PDFs ({total_pages} pages, {total_code_blocks} code blocks, "
+        f"{total_code_images} code images) into {MARKDOWN_DIR}"
+    )
 
 
 if __name__ == "__main__":
