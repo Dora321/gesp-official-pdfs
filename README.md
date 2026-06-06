@@ -2,7 +2,7 @@
 
 This repository stores the full local archive imported from macOS Downloads/GESP_CPP.
 
-- Total PDF files: 84
+- Total PDF files: 92
 - Source import: ~/Downloads/GESP_CPP
 
 ## Integrity
