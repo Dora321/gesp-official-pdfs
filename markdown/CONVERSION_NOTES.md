@@ -2,59 +2,42 @@
 
 ## 目标
 
-将 `pdfs/` 下全部试卷 PDF 转换为 Markdown，并为每一页导出 PNG 图片，以最大化保留题面信息、版式线索、图形与公式可追溯性。
+将 `pdfs/` 目录中的 GESP C++ 真题 PDF 转换为对应的 Markdown 文件，并为每一页导出 PNG 页面图，保证文本可检索、页面可核验、图形和公式不丢失。
 
-## 方法
+## 输出结构
 
-转换脚本：[`scripts/convert_pdfs_to_markdown.py`](../scripts/convert_pdfs_to_markdown.py)
+- `markdown/<试卷名>.md`: 每份 PDF 对应一份 Markdown。
+- `markdown_assets/<试卷名>/page-XXX.png`: 每页 PDF 的页面图。
+- `markdown/INDEX.md`: Markdown 索引。
+- `markdown/CONVERSION_REPORT.md`: 本次转换统计报告。
 
-核心流程：
+## 转换方法
+
+脚本: [`scripts/convert_pdfs_to_markdown.py`](../scripts/convert_pdfs_to_markdown.py)
+
+核心流程:
 
 1. 扫描 `pdfs/*.pdf`。
-2. 使用 PyMuPDF（`fitz`）逐个打开 PDF。
-3. 对每页执行两类输出：
-   - 文本提取：`page.get_text("text", sort=True)`，尽量保持阅读顺序；
-   - 页面渲染：按 144 DPI 导出 PNG，保存到 `markdown_assets/<pdf_name>/page-XXX.png`。
-4. 为每个 PDF 生成一个对应的 `markdown/<pdf_name>.md`，内容至少包含：
-   - 文档标题
-   - 原始 PDF 链接
-   - 分页小节
-   - 每页图片引用
-   - 每页文本提取结果
-5. 生成：
-   - `markdown/INDEX.md`
-   - `markdown/CONVERSION_REPORT.md`
-   - 本说明文档
+2. 使用 PyMuPDF 打开 PDF。
+3. 对每页执行文本提取: `page.get_text("text", sort=True)`。
+4. 对每页渲染 `144` DPI PNG 页面图。
+5. 生成包含元信息、页面图和逐页文本的 Markdown。
 
-## 依赖
+## 质量说明
 
-- Python 3.9+
-- PyMuPDF / fitz
-
-安装示例：
-
-```bash
-python3 -m pip install pymupdf
-```
+- Markdown 文本用于搜索、复制和快速阅读。
+- 页面图用于保留原始版式、公式、表格、代码缩进、插图和题面排版。
+- 如果文本提取与页面图存在差异，以页面图和原始 PDF 为准。
+- 默认复用已存在的页面图，只在页面图缺失或指定 `--overwrite-images` 时重新渲染。
 
 ## 复现
 
-在仓库根目录执行：
-
 ```bash
-python3 scripts/convert_pdfs_to_markdown.py
+py scripts/convert_pdfs_to_markdown.py
 ```
 
-脚本会自动创建或覆盖：
+如需强制重新生成所有页面图:
 
-- `markdown/*.md`
-- `markdown/INDEX.md`
-- `markdown/CONVERSION_NOTES.md`
-- `markdown/CONVERSION_REPORT.md`
-- `markdown_assets/<pdf_name>/page-XXX.png`
-
-## 局限
-
-- PDF 文本层若本身缺失、错乱或包含复杂对象（如公式、流程图、扫描图片），文本提取可能不完整。
-- Markdown 无法原样复现 PDF 的全部版式；因此每页图片是本转换方案的重要兜底，确保信息不丢失、可回溯。
-- 图片按 144 DPI 导出，在可读性与仓库体积之间做了折中；若后续希望更高保真，可提升 `IMAGE_DPI`。
+```bash
+py scripts/convert_pdfs_to_markdown.py --overwrite-images
+```
