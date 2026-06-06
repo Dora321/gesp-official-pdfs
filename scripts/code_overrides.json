@@ -1,0 +1,523 @@
+[
+  {
+    "file": "2023年12月-C++1级",
+    "page": 1,
+    "y": 609.8,
+    "language": "cpp",
+    "code": "int N, dayX, hourX;\n\ncin >> N;\n\ndayX = ________, hourX = ________;\nif (dayX == 0)\n    cout << \"今天\" << hourX << \"点\";\nelse\n    cout << \"第\" << (dayX + 1) << \"天\" << hourX << \"点\";"
+  },
+  {
+    "file": "2023年12月-C++1级",
+    "page": 3,
+    "y": 194.0,
+    "language": "cpp",
+    "code": "N = 10;\ncnt = 0;\nwhile(1){\n    if(N == 0) break;\n    cnt += 1;\n    N -= 2;\n}\ncout << cnt;"
+  },
+  {
+    "file": "2023年12月-C++1级",
+    "page": 3,
+    "y": 433.6,
+    "language": "cpp",
+    "code": "cin >> N;\ncnt = 0;\nfor (int i = 1; i < N + 1; i++)\n    if (N % i == 0)\n        ________;\nif (cnt == 2)\n    cout << N << \"是质数。\";\nelse\n    cout << N << \"不是质数。\";"
+  },
+  {
+    "file": "2023年12月-C++1级",
+    "page": 3,
+    "y": 706.0,
+    "language": "cpp",
+    "code": "#include <stdlib.h>\n\nusing namespace std;\n\nint main(){\n    int arr[] = {2,6,3,5,4,8,1,0,9,10};\n    for(int i = 0;i < 10;i++)\n        cout << arr[i] << \" \";\n    cout << i << endl;\n\n    cout << endl;\n    return 0;\n}"
+  },
+  {
+    "file": "2023年12月-C++1级",
+    "page": 4,
+    "y": 194.9,
+    "language": "cpp",
+    "code": "cnt = 0;\nfor (i = 10; i > 3; i -= 3)\n    cnt = cnt + i;\ncout << cnt;"
+  },
+  {
+    "file": "2023年12月-C++1级",
+    "page": 4,
+    "y": 580.9,
+    "language": "cpp",
+    "code": "char c;\nwhile(1){\n    cin >> c;\n    if(c=='q') break;\n    switch(c){\n        case 'A': cout << \"1 \"; break;\n        case 'B': cout << \"3 \";\n        case 'C': cout << \"3 \";\n        case 'D': cout << \"5 \"; break;\n        case 'E': cout << \"5 \"; break;\n        default: cout << \"9 \";\n    }\n    cout << endl;\n}"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 1,
+    "y": 577.8,
+    "language": "cpp",
+    "code": "cin >> N;\nfor(______________)\n    if(N % i == 0)\n        cout << i << \" \";"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 2,
+    "y": 95.7,
+    "language": "cpp",
+    "code": "cin >> N;\nnewNum = 0;\nwhile(N){\n    newNum = newNum * 10 + N % 10;\n    N = N / 10;\n}\nif(newNum == N)\n    cout << N << \"为对称数\";"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 2,
+    "y": 345.5,
+    "language": "cpp",
+    "code": "cin >> N;\nfor(i = 2; i < N/2; i++)\n    if(N % i == 0){\n        cout << N << \" 不是质数\";\n        break;\n    }\nif(i >= N/2)\n    cout << N << \" 是质数\";"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 2,
+    "y": 578.7,
+    "language": "cpp",
+    "code": "N = 4;\nfor(int i = 0; i < N; i++){\n    for(int j = 1; j < i; j++)\n        if (i * j % 2 == 0)\n            cout << i << \"#\";\n    continue;\n}\ncout << \"0\";"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 3,
+    "y": 100.7,
+    "language": "cpp",
+    "code": "cnt = 0;\nfor(i = 1; i < 10; i++)\n    for(j = 1; j < i; j += 2)\n        if (i * j % 2 == 0){\n            cnt++;\n            break;\n        }\nif(i >= 10) cout << cnt << \"#\";\ncout << cnt;"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 3,
+    "y": 346.8,
+    "language": "cpp",
+    "code": "N=100;\nwhile (N > 0)\n    if (N % 2)\n        break;\n    else if (N % 3 == 0)\n        N -= 5;\n    else\n        N -= 20;\ncout << N;"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 3,
+    "y": 606.2,
+    "language": "cpp",
+    "code": "x= 1;\nwhile (x<100){\n    if (x % 3 != 0)\n        cout << x << \",\";\n    else if (x / 10)\n        break;\n    else\n        x+=5;\n    x += 2;\n}\ncout << x;"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 4,
+    "y": 77.5,
+    "language": "cpp",
+    "code": "cnt = 0;\nfor (i=0; i<5; i++)\n    for (j=0; j<i; j++)\n        cnt += 1;\ncout << cnt;"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 4,
+    "y": 262.5,
+    "language": "cpp",
+    "code": "for (i=1; i < 100+1; i++)\n    if(____________________)\n        cout << i << \" \";"
+  },
+  {
+    "file": "2023年12月-C++2级",
+    "page": 5,
+    "y": 583.1,
+    "language": "cpp",
+    "code": "Sum = 0;\nfor (i = -500; i < 500; i++)\n    Sum += i;\ncout << Sum;"
+  },
+  {
+    "key": "2023年12月-C++3级__p001__c01",
+    "language": "cpp",
+    "code": "int temp=0;\nfor(int i=1;i<7;i++)\n{\n    for(int j=1;j<5;j++)\n    {\n        if(i/j==2)\n        {\n            temp++;\n        }\n    }\n}\ncout<<temp<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p002__c01",
+    "language": "cpp",
+    "code": "string str=(\"chen\");\nint x=str.length();\nint temp=0;\nfor(int i=0;i<=x;i++)\n{\n    temp++;\n}\ncout<<temp<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p002__c02",
+    "language": "cpp",
+    "code": "string str=(\"chen\");\nint x=str.length();\ncout<<x<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p002__c03",
+    "language": "cpp",
+    "code": "string str=(\"chen\");\ncout<<str[5]<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p002__c04",
+    "language": "cpp",
+    "code": "char ch[10]={'1'};\ncout<<ch[2]<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p003__c01",
+    "language": "cpp",
+    "code": "string str=\"GESP is a good programming test!\";\nint x=0;\nfor(int i=0;i<str.length();i++)\n{\n    if(__________)\n    {\n        x++;\n    }\n}\ncout<<x<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p003__c02",
+    "language": "cpp",
+    "code": "int cnt=0;\nfor(int i=0;i<=20;i++)\n{\n    if(i%3==0&&i%5==0)\n    {\n        cnt++;\n    }\n}\ncout<<cnt;"
+  },
+  {
+    "key": "2023年12月-C++3级__p003__c03",
+    "language": "cpp",
+    "code": "int a=3;\nint b=2;\ncout<<a/b*1.0<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p004__c01",
+    "language": "cpp",
+    "code": "string strSrc=\"红十字：01084025890火警电话：119急救电话：120紧急求助：110\";\nstring tel=\"\";\nfor(int i=0;i<=strSrc.length();i++)\n{\n    if(strSrc[i]>='0'&&strSrc[i]<='9')\n    {\n        tel=tel+strSrc[i];\n    }\n    else if(tel!=\"\")\n    {\n        cout<<tel<<endl;\n        tel=\"\";\n    }\n}"
+  },
+  {
+    "key": "2023年12月-C++3级__p004__c02",
+    "language": "cpp",
+    "code": "string str;\ncin>>str;\ncout<<str;"
+  },
+  {
+    "key": "2023年12月-C++3级__p005__c01",
+    "language": "cpp",
+    "code": "string a=\"china\";\na.replace(0,1,\"C\");\ncout<<a<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p005__c02",
+    "language": "cpp",
+    "code": "int list[10]={1,2,3,4,5,6,7,8,9,10};\nfor(int i=0;i<10;i++)\n{\n    if(i%5==0)\n    {\n        cout<<list[i]<<\" \";\n    }\n}"
+  },
+  {
+    "key": "2023年12月-C++3级__p005__c03",
+    "language": "cpp",
+    "code": "int list[10]={1};\ncout<<list<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p005__c04",
+    "language": "cpp",
+    "code": "int arr[10]={1};\ncout<<arr[0]<<endl;"
+  },
+  {
+    "key": "2023年12月-C++3级__p005__c05",
+    "language": "cpp",
+    "code": "int list[10]={1,2,3,4,5,6,7,8,9,10};\nfor(int i=0;i<10;i+=2)\n{\n    cout<<list[i]<<\" \";\n}"
+  },
+  {
+    "key": "2023年12月-C++4级__p001__c01",
+    "language": "cpp",
+    "code": "int arr[10]={1};\nstring strArr=\"chen a dai\";\ncout<<strArr[arr[1]]<<endl;"
+  },
+  {
+    "key": "2023年12月-C++4级__p001__c02",
+    "language": "cpp",
+    "code": "int fun1(int *n)\n{\n    return *n**n;\n}\nint main()\n{\n    int arr[10]={2};\n    arr[1]=fun1(arr);\n    cout<<arr[1]<<endl;\n}"
+  },
+  {
+    "key": "2023年12月-C++4级__p002__c01",
+    "language": "cpp",
+    "code": "int arr[3][3]={{1,2,3},{4,5,6},{7,8,9}};\nfor(int i=0;i<3;i++)\n{\n    for(int j=2;j>=0;j--)\n    {\n        cout<<arr[i][j]<<\" \";\n    }\n    cout<<endl;\n}"
+  },
+  {
+    "key": "2023年12月-C++4级__p002__c02",
+    "language": "cpp",
+    "code": "int arr[3]={1,2,3};\nint *p=NULL;\np=arr;\np++;\ncout<<*p<<endl;"
+  },
+  {
+    "key": "2023年12月-C++4级__p002__c03",
+    "language": "cpp",
+    "code": "int *p=NULL;\nint x=2;\np=&x;\np++;\ncout<<p<<endl;"
+  },
+  {
+    "key": "2023年12月-C++4级__p003__c01",
+    "language": "cpp",
+    "code": "int cnt[26]={0};\nfor(int i=1;i<26;i++)\n{\n    ________________;\n}\nfor(int i=0;i<26;i++)\n{\n    cout<<alpha[i]<<\" \";\n}\ncout<<endl;\nfor(int i=0;i<26;i++)\n{\n    for(int j=0;j<strlen;j++)\n    {\n        if(alpha[i]==str[j])\n        {\n            cnt[i]++;\n        }\n    }\n}\nfor(int i=0;i<26;i++)\n{\n    cout<<cnt[i]<<\" \";\n}"
+  },
+  {
+    "key": "2023年12月-C++4级__p004__c01",
+    "language": "cpp",
+    "code": "ofstream fout;\nfout.open(\"1.txt\");\nfor(int i=1;i<=10;i++)\n{\n    if(i%5==0)\n    {\n        int x=6;\n        fout<<x;\n    }\n    else\n    {\n        char ch='A';\n        fout<<ch;\n    }\n}"
+  },
+  {
+    "key": "2023年12月-C++4级__p004__c02",
+    "language": "cpp",
+    "code": "string str=\"\";\ncin>>str;\nint strlen=str.length();\nfor(int i=0;i<strlen;i++)\n{\n    if(str[i]<='9'&&str[i]>='0')\n    {\n        cout<<str[i];\n    }\n    else\n    {\n        cout<<\"#\";\n    }\n}"
+  },
+  {
+    "key": "2023年12月-C++4级__p004__c03",
+    "language": "cpp",
+    "code": "int n;\ncin>>n;\nfor(int i=1;i<=n;i++)\n{\n    ________\n    {\n        cout<<i<<\" \";\n    }\n}"
+  },
+  {
+    "file": "2023年12月-C++4级",
+    "page": 5,
+    "y": 734.4,
+    "language": "cpp",
+    "code": "ifstream filein;\nofstream fileout;\nfilein.open(\"1.txt\");\nfileout<<\"hello\";"
+  },
+  {
+    "file": "2023年12月-C++4级",
+    "page": 6,
+    "y": 203.4,
+    "language": "cpp",
+    "code": "string a=\"chen\";\nstring b=\"a\";\nstring c=\"dai\";\nstring name=a+b+c;\ncout<<name<<endl;"
+  },
+  {
+    "file": "2023年12月-C++4级",
+    "page": 6,
+    "y": 73.3,
+    "language": "cpp",
+    "code": "ifstream filein;\nint buff;\nfilein.open(\"1.txt\");\nfilein>>buff;\ncout<<buff<<endl;"
+  },
+  {
+    "key": "2023年12月-C++4级__p003__c02",
+    "skip": true
+  },
+  {
+    "key": "2023年12月-C++4级__p005__c01",
+    "skip": true
+  },
+  {
+    "key": "2023年12月-C++5级__p001__c01",
+    "language": "cpp",
+    "code": "int fiboA(int N)\n{\n    if (N == 1 || N == 2)\n        return 1;\n    return fiboA(N - 1) + fiboA(N - 2);\n}\nint fiboB(int N)\n{\n    if (N == 1 || N == 2)\n        return 1;\n    int last2 = 1, last1 = 1;\n    int nowVal = 0;\n    for (int i = 2; i < N; i++)\n    {\n        nowVal = last1 + last2;\n        last2 = last1;\n        last1 = nowVal;\n    }\n    return nowVal;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p001__c02",
+    "language": "cpp",
+    "code": "void mergeSort(int SList[], int TList[], int s, int t, int len)\n{\n    if (s == t){\n        TList[s] = SList[s];\n        return;\n    }\n    int *T2 = new int[len]; // 保存中间结果\n    int m = (s + t) / 2;\n    ________________________________;\n    merge(T2, SList, s, m, t);\n    delete T2;\n    return ;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p002__c01",
+    "language": "cpp",
+    "code": "int fracA(int N)\n{\n    stepCount += 1;\n    cout << stepCount << \"->\";\n    int rtn = 1;\n    for (int i = 1; i <= N; i++)\n        rtn *= i;\n    return rtn;\n}\nint fracB(int N)\n{\n    stepCount += 1;\n    cout << stepCount << \"->\";\n    if (N == 1)\n        return 1;\n    return N * fracB(N - 1);\n}\nint main()\n{\n    cout << fracA(5);\n    cout << \"<===>\";\n    cout << fracB(5);\n    return 0;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p002__c02",
+    "language": "cpp",
+    "code": "bool isEven(int N)\n{\n    return N % 2 == 0;\n}\n\nvoid swap(int &a, int &b)\n{\n    int t;\n    t=a,a=b,b=t;\n    return;\n}\n\nvoid sortA(int lstA[], int n)\n{\n    int i,j,t;\n    for (i = n-1; i > 0; i--)\n        for(j = 0; j < i; j++)\n            if(______________________________)\n                swap(lstA[j], lstA[j+1]);\n\n    return;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p003__c01",
+    "language": "cpp",
+    "code": "typedef struct Node{\n    string str;\n    int ref;\n    struct Node *next, *prev;\n}Node;\nNode * Insert(Node *pHead, string s)\n{\n    Node *p = pHead->next;\n    Node *q;\n    while(p){\n        if(p->str == s){\n            p->ref++;\n            p->next->prev = p->prev;\n            p->prev->next = p->next;\n            break;\n        }\n        p=p->next;\n    }\n    if(!p) {\n        p = new Node;\n        p->str = s;\n        p->ref=0;\n        p->next = p->prev = NULL;\n    }\n    ________________________________\n    pHead->next = p, p->prev = pHead;\n    return pHead;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p003__c02",
+    "language": "cpp",
+    "code": "int rc;\nint foo(int x, int y)\n{\n    int r;\n    if(y == 0)\n        r = x;\n    else{\n        r = foo(y, x % y);\n        rc++;\n    }\n    return r;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p004__c01",
+    "language": "cpp",
+    "code": "bool isPrimeA(int N)\n{\n    if (N < 2)\n        return false;\n    for (int i = 2; i <= N / 2 ; i++)\n        if (N % i == 0)\n            return false;\n    return true;\n}\nbool isPrimeB(int N)\n{\n    if (N < 2)\n        return false;\n    for (int i = 2; i <= sqrt(N); i++)\n        if (N % i == 0)\n            return false;\n    return true;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p005__c01",
+    "language": "cpp",
+    "code": "vector<int> operator +(vector<int> a, vector<int> b)\n{\n    vector<int> c;\n    int t = 0;\n\n    for(int i = 0; i < a.size() || i < b.size(); i ++ )\n    {\n        if(i < a.size()) t = t + a[i];\n        if(i < b.size()) t = t + b[i];\n        ________________________________\n    }\n\n    if(t) c.push_back(t);\n\n    return c;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p007__c01",
+    "language": "cpp",
+    "code": "int Fibo(int N)\n{\n    if (N == 1 || N == 2)\n        return 1;\n    else\n    {\n        int m = fiboA(N - 1);\n        int n = fiboB(N - 2);\n        return m + n;\n    }\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p007__c02",
+    "language": "cpp",
+    "code": "char s[10];\nint main()\n{\n    int N;\n    cin >> N;\n    string rst = \"\";\n    while (N != 0)\n    {\n        s[0]=N % 8 + '0';\n        rst += string(s);\n        N /= 8;\n    }\n    cout << rst << endl;\n\n    return 0;\n}"
+  },
+  {
+    "key": "2023年12月-C++5级__p004__c02",
+    "skip": true
+  },
+  {
+    "key": "2023年12月-C++5级__p005__c02",
+    "skip": true
+  },
+  {
+    "key": "2023年12月-C++5级__p006__c01",
+    "language": "cpp",
+    "code": "class Node\n{\npublic:\n    int Value;\n    Node* Prev;\n    Node* Next;\n    Node(int Val, Node* Prv = NULL, Node* Nxt = NULL);\n};\n\nNode::Node(int Val,Node*Prv,Node* Nxt)\n{\n    this->Value = Val;\n    this->Prev = Prv;\n    this->Next = Nxt;\n}\n\nint main()\n{\n    Node firstNode = Node(10);\n    firstNode.Next = new Node(100, &firstNode);\n    firstNode.Next->Next = new Node(111, firstNode.Next);\n}"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 1,
+    "y": 480.9,
+    "language": "cpp",
+    "code": "class Rectangle\n{\nprivate:\n    class Point\n    {\n    public:\n        double x;\n        double y;\n    };\n    Point a, b, c, d;\n    double length;\n    double width;\npublic:"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 2,
+    "y": 122.3,
+    "language": "cpp",
+    "code": "using namespace std;\nclass newClass\n{\npublic:\n    static int objCounter;\n    ________\n};\nint newClass::objCounter=2;\nint main()\n{\n    newClass classA;\n    newClass classB;\n    cout<<newClass::objCounter<<endl;\n    cout<<classB.objCounter<<endl;\n}"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 2,
+    "y": 410.5,
+    "language": "cpp",
+    "code": "struct BiNode {\n    char data;\n    BiNode* lchid,*rchid;\n};\nclass BiTree {\nprivate:\n    BiNode* Creat();\n    void Release(BiNode* bt);\n    BiNode* root;\npublic:\n    BiTree() {\n        root = Creat();\n    }\n    ~BiTree() {\n        Release(root);\n    }"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 2,
+    "y": 670.3,
+    "language": "cpp",
+    "code": "void Order(BiNode* bt) {\n    if (bt == nullptr)\n        return;\n    else {\n        cout << bt->data;\n        Order(bt->lchid);\n        Order(bt->rchid);\n    }\n}"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 3,
+    "y": 208.7,
+    "language": "cpp",
+    "code": "typedef struct LinkList {\n    int data;\n\n    LinkList* next;\n\n    LinkList* prev;\n\n}LinkList,LinkNode;\nbool ListInit(LinkList* &L) {\n\n    L = new LinkNode;\n    if (!L)return false;\n\n    L->next = NULL;\n    L->prev = NULL;\n    L->data = -1;\n\n    return true;\n}"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 4,
+    "y": 181.5,
+    "language": "cpp",
+    "code": "int fiboA(int n)\n{\n    if(n==0)\n        return 1;\n    if(n==1)\n        return 1;\n    else\n    {\n        return fiboA(n-1)+fiboA(n-2);\n    }\n}\nint fiboB(int n)\n{\n    if((n==0) || (n==1)){\n        fiboB[n]=n;\n        return n;\n    }\n    else{\n        if(fiboB[n] == 0){\n            fiboB[n]=FiboB(n-1)+FiboB(n-2);\n        }\n        return fiboB[n];\n    }\n}"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 4,
+    "y": 567.3,
+    "language": "cpp",
+    "code": "int Depth(BiNode* T)\n{\n    if (T == NULL)\n    {\n        return 0;\n    }\n    else\n    {\n        int m = Depth(T->lchild);\n        int n = Depth(T->rchild);\n        if (m > n)\n        {\n            return m + 1;\n        }\n        else\n        {\n            return n + 1;\n        }\n    }\n}"
+  },
+  {
+    "file": "2023年12月-C++6级",
+    "page": 6,
+    "y": 336.5,
+    "language": "cpp",
+    "code": "int * ptr=new int(10);\ncout<<*ptr<<endl;\ndelete ptr;\ncout<<*ptr<<endl;"
+  },
+  {
+    "file": "2023年12月-C++7级",
+    "page": 2,
+    "y": 161.5,
+    "language": "cpp",
+    "code": "int s[MAX_N], f[MAX_N][MAX_N];\nint stone_merge(int n, int a[]) {\n    for (int i = 1; i <= n; i++)\n        s[i] = s[i - 1] + a[i];\n    for (int i = 1; i <= n; i++)\n        for (int j = 1; j <= n; j++)\n            if (i == j)\n                f[i][j] = 0;\n            else\n                f[i][j] = MAX_F;\n    for (int l = 1; l < n; l++)\n        for (int i = 1; i <= n - l; i++) {\n            int j = i + l;\n            for (int k = i; k < j; k++)\n                f[i][j] = min(f[i][j], f[i][k] + f[k + 1][j] + s[j] - s[i - 1]);\n        }\n    return f[1][n];\n}"
+  },
+  {
+    "file": "2023年12月-C++7级",
+    "page": 2,
+    "y": 582.2,
+    "language": "cpp",
+    "code": "int a[2023], f[2023];\nint main()\n{\n    int n,i,j,ans = -1;\n\n    cin>>n;\n    for( i=1; i<=n; i++){\n        cin >> a[i];\n        f[i] = 1;\n    }\n\n    for( i=1; i<=n; i++)\n        for( j=1; j<i; j++)\n            if(a[j] < a[i])\n                f[i] = max(f[i], f[j]+1);\n    for( i=1; i<=n; i++){\n        ans = max(ans, f[i]);\n        cout << f[i] << \" \";\n    }\n\n    cout << ans << endl;\n    return 0;\n}"
+  },
+  {
+    "file": "2023年12月-C++7级",
+    "page": 4,
+    "y": 284.3,
+    "language": "cpp",
+    "code": "while (cin >> s1 >> s2)\n{\n    memset(dp, 0, sizeof(dp));\n    int n1 = strlen(s1), n2 = strlen(s2);\n    for (int i = 1; i <= n1; ++i)\n        for (int j = 1; j <= n2; ++j)\n            if (s1[i - 1] == s2[j - 1])\n                dp[i][j] = dp[i - 1][j - 1] + 1;\n            else\n                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]);\n    cout << dp[n1][n2] << endl;\n}"
+  },
+  {
+    "file": "2023年12月-C++7级",
+    "page": 5,
+    "y": 247.7,
+    "language": "cpp",
+    "code": "typedef struct Node{\n    int data;\n    struct Node *next;\n}Node;\nNode* hTab[7];\nint key[]={44, 36, 23, 35, 52, 73, 90, 58, 0};\nvoid Insert()\n{\n    int i,j;\n    Node *x;\n\n    for(i=0; key[i];i++){\n        j = key[i] % 7;\n        x=new Node;\n        x->data = key[i];\n        x->next = hTab[j];\n        hTab[j] = x;\n    }\n}"
+  },
+  {
+    "file": "2023年12月-C++7级",
+    "page": 6,
+    "y": 170.9,
+    "language": "cpp",
+    "code": "typedef struct ArcNode{\n    int adjvex;        // 该弧所指向的顶点的位置\n    struct ArcNode *nextarc; // 指向下一条弧的指针\n    InfoType *info;    // 该弧相关信息的指针\n} ArcNode;\ntypedef struct VNode{\n    VertexType data;   // 顶点信息\n    ArcNode *firstarc; // 指向第一条依附该顶点的弧\n} VNode, AdjList[MAX_VERTEX_NUM];\ntypedef struct{\n    AdjList vertices;\n    int vexnum, arcnum;\n    int kind;          // 图的种类标志\n} ALGraph;"
+  },
+  {
+    "file": "2023年12月-C++8级",
+    "page": 2,
+    "y": 620.8,
+    "language": "cpp",
+    "code": "int gcd(int m, int n) {\n    while (m > 0) {\n        int t = m;\n        m = n % m;\n        n = t;\n    }\n    return n;\n}"
+  },
+  {
+    "file": "2023年12月-C++8级",
+    "page": 3,
+    "y": 135.4,
+    "language": "cpp",
+    "code": "long long power_mod(long long a, long long n, long long mod) {\n    if (n == 0)\n        return 1;\n    a = a % mod;\n    if (n == 1)\n        return a;\n    long long pw = power_mod(a, n / 2, mod);\n    long long pw2 = pw * pw % mod;\n    if (n % 2 == 0)\n        return pw2;\n    return pw2 * a % mod;\n}"
+  },
+  {
+    "file": "2023年12月-C++8级",
+    "page": 3,
+    "y": 385.4,
+    "language": "cpp",
+    "code": "int record_choose[MAXN][MAXM];\nint choose(int n, int m) {\n    if (m == 0 || m == n)\n        return 1;\n    if (record_choose[n][m] == 0)\n        record_choose[n][m] = choose(n - 1, m - 1) + choose(n - 1, m);\n    return record_choose[n][m];\n}"
+  },
+  {
+    "file": "2023年12月-C++8级",
+    "page": 3,
+    "y": 667.3,
+    "language": "cpp",
+    "code": "#include <iostream>\n\nstruct Edge {\n    int e;\n    Edge * next;\n};\nstruct Node {\n    Edge * first;\n};\n\nint main() {\n    Edge e[5] = {{1, nullptr}, {2, &e[2]},\n                 {3, nullptr}, {3, nullptr}, {0, nullptr}};\n    Node n[4] = {&e[0], &e[1], &e[3], &e[4]};\n    ; // 其他处理\n    return 0;\n}"
+  },
+  {
+    "file": "2023年12月-C++8级",
+    "page": 4,
+    "y": 580.3,
+    "language": "cpp",
+    "code": "#include <iostream>\nusing namespace std;\n\nint main() {\n    int cnt = 0;\n    for (int a = 1; a <= 10; a++)\n        for (int b = 1; b <= 10; b++)\n            for (int h = 1; h <= 10; h++)\n                if ((a + b) * h == 20)\n                    cnt++;\n    cout << cnt << endl;\n    return 0;\n}"
+  },
+  {
+    "file": "2023年12月-C++8级",
+    "page": 5,
+    "y": 148.5,
+    "language": "cpp",
+    "code": "#include <iostream>\nusing namespace std;\n\nint main() {\n    const int N = 30;\n    int cnt = 0;\n    for (int a = 1; a <= N; a++)\n        for (int b = a; a + b <= N; b++)\n            for (int c = b; a + b + c <= N; c++)\n                if (a * a + b * b == c * c)\n                    cnt++;\n    cout << cnt << endl;\n    return 0;\n}"
+  },
+  {
+    "key": "2024年6月-C++2级__p005__c01",
+    "language": "text",
+    "code": "1\n2 4\n3 6 9\n4 8 12 16\n5 10 15 20 25"
+  },
+  {
+    "key": "2024年6月-C++4级__p001__c01",
+    "language": "cpp",
+    "code": "int func(int x,int y)\n{\n    int a=x,b=y;\n    int t;\n    t=a;\n    a=b;\n    b=t;\n    cout<<a<<\"  \"<<b<<\"  \";\n}\nint main()\n{\n    int c,d;\n    c=12;\n    d=24;\n    func(12,24);\n    cout<<c<<\"  \"<<d<<endl;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p003__c01",
+    "language": "cpp",
+    "code": "int func();\nint main()\n{\n    int i=2;\n    cout<<i<<endl;\n    for(int x=0;x<1;x++)\n    {\n        int i=10;\n        cout<<i<<endl;\n    }\n    i=i+1;\n    cout<<i<<endl;\n    {\n        i=i*i;\n        cout<<i<<endl;\n    }\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p003__c02",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\nint main()\n{\n    int *p;\n    int a=10;\n    p=&a;\n    p++;\n    cout<<p<<endl;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p004__c01",
+    "language": "cpp",
+    "code": "int main()\n{\n    cin>>n;\n    for(int i=1;i<=n;i++)\n        cin>>a[i];\n    for(int i=n;i>1;i--)\n        for(int j=1;j<i;j++)\n            if(a[j]>a[j+1])\n                ________________;\n    for(int i=1;i<=n;i++)\n        cout<<a[i]<<\" \";\n    cout<<endl;\n    return 0;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p005__c01",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\nint main()\n{\n    int a[2][3]={0};\n    cout<<a<<endl;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p007__c01",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\n\ndouble Division(int a, int b)\n{\n    if (b == 0)\n        throw \"Division by zero condition!\";\n    else\n        return ((double)a / (double)b);\n}\n\nvoid func()\n{\n    int len, time;\n    cin >> len >> time;\n    cout << Division(len, time) << endl;\n}\n\nint main()\n{\n    try {\n        func();\n    }\n    catch (const char* errmsg)\n    {\n        cout << errmsg << endl;\n    }\n    catch (const int errmsg)\n    {\n        cout << errmsg << endl;\n    }\n    return 0;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p008__c01",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\nint main()\n{\n    int a=20;\n    int& ra;\n    ra=&a;\n    cout<<ra<<endl;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p008__c02",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\nint main()\n{\n    int a[2][3]={0};\n    cout<<a<<endl;\n    cout<<&a[0][0]<<endl;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p009__c01",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\nint main()\n{\n    int *p=NULL;\n    cout<<p<<endl;\n}"
+  },
+  {
+    "key": "2024年6月-C++4级__p009__c02",
+    "language": "cpp",
+    "code": "#include<iostream>\nusing namespace std;\nint main()\n{\n    int a[10][10]={0};\n    for(int i=0;i<10;i++)\n    {\n        for(int j=0;j<10;j++)\n        {\n            if(i==j)\n            {\n                a[i][j]=1;\n            }\n        }\n    }\n}"
+  },
+  {
+    "key": "2025年6月-C++5级__p006__c01",
+    "language": "cpp",
+    "code": "int find_max(const vector<int>& nums) {\n    if (nums.empty()) {\n        throw invalid_argument(\"输入数组不能为空\");\n    }\n\n    int max_value = nums[0];\n    for (int num : nums) {\n        if (num > max_value) {\n            max_value = num;\n        }\n    }\n    return max_value;\n}"
+  },
+  {
+    "key": "2026年3月-C++7级__p011__c01",
+    "skip": true
+  }
+]

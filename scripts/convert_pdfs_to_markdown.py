@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -16,8 +17,7 @@ import fitz
 ROOT = Path(__file__).resolve().parents[1]
 PDF_DIR = ROOT / "pdfs"
 MARKDOWN_DIR = ROOT / "markdown"
-ASSETS_DIR = ROOT / "markdown_assets"
-DEFAULT_IMAGE_DPI = 144
+OVERRIDES_PATH = ROOT / "scripts" / "code_overrides.json"
 
 
 @dataclass(frozen=True)
@@ -28,15 +28,26 @@ class PdfMeta:
 
 
 @dataclass(frozen=True)
+class CodeOverride:
+    file: str | None
+    page: int | None
+    y: float | None
+    code: str
+    language: str = "cpp"
+    key: str | None = None
+    skip: bool = False
+
+
+@dataclass(frozen=True)
 class ConversionRecord:
     pdf_path: Path
     md_path: Path
-    asset_dir: Path
     title: str
     meta: PdfMeta
     page_count: int
-    image_count: int
     text_pages: int
+    code_blocks_inserted: int
+    code_anchors_without_override: int
 
 
 def slugify_filename(name: str) -> str:
@@ -49,7 +60,7 @@ def slugify_filename(name: str) -> str:
 
 
 def parse_filename_meta(name: str) -> PdfMeta:
-    match = re.search(r"(20\d{2})年(\d{1,2})月-C\+\+(\d+)级", name)
+    match = re.search(r"(20\d{2})年(\d{1,2})月-C\+\+(\d+)级", unicodedata.normalize("NFKC", name))
     if not match:
         return PdfMeta(None, None, None)
     return PdfMeta(int(match.group(1)), int(match.group(2)), int(match.group(3)))
@@ -67,10 +78,6 @@ def sort_key(path: Path) -> tuple[int, int, int, str]:
 
 def md_link(target: str) -> str:
     return quote(target.replace("\\", "/"), safe="/:+#%?=&,._-()")
-
-
-def page_image_name(page_no: int) -> str:
-    return f"page-{page_no:03d}.png"
 
 
 def clean_text(text: str) -> str:
@@ -107,86 +114,160 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def convert_pdf(pdf_path: Path, *, image_dpi: int, overwrite_images: bool) -> ConversionRecord:
+def load_code_overrides() -> list[CodeOverride]:
+    if not OVERRIDES_PATH.exists():
+        return []
+    data = json.loads(OVERRIDES_PATH.read_text(encoding="utf-8"))
+    overrides: list[CodeOverride] = []
+    for item in data:
+        overrides.append(
+            CodeOverride(
+                file=item.get("file"),
+                page=int(item["page"]) if "page" in item else None,
+                y=float(item["y"]) if "y" in item else None,
+                code=item.get("code", "").rstrip(),
+                language=item.get("language", "cpp"),
+                key=item.get("key"),
+                skip=bool(item.get("skip", False)),
+            )
+        )
+    return overrides
+
+
+def find_override(
+    overrides: list[CodeOverride],
+    *,
+    file_stem: str,
+    page_no: int,
+    y: float,
+    key: str,
+    tolerance: float = 8.0,
+) -> CodeOverride | None:
+    candidates = [
+        item
+        for item in overrides
+        if item.file == file_stem
+        and item.page == page_no
+        and item.y is not None
+        and abs(item.y - y) <= tolerance
+    ]
+    if candidates:
+        return min(candidates, key=lambda item: abs((item.y or 0) - y))
+
+    for item in overrides:
+        if item.key == key:
+            return item
+    return None
+
+
+def is_probable_code_anchor(block: tuple) -> bool:
+    x0, y0, x1, y1, text, *_ = block
+    width = x1 - x0
+    height = y1 - y0
+    return not text.strip() and 0 < width <= 20 and 5 <= height <= 30
+
+
+def render_page_markdown(
+    page: fitz.Page,
+    *,
+    file_stem: str,
+    page_no: int,
+    overrides: list[CodeOverride],
+) -> tuple[list[str], int, int, bool]:
+    events: list[tuple[float, int, str, str]] = []
+    inserted = 0
+    missing = 0
+    has_text = False
+    anchor_count = 0
+
+    for block in page.get_text("blocks", sort=True):
+        x0, y0, x1, y1, text, *_ = block
+        cleaned = clean_text(text)
+        if cleaned:
+            has_text = True
+            events.append((y0, 1, "text", cleaned))
+            continue
+
+        if is_probable_code_anchor(block):
+            anchor_count += 1
+            key = f"{file_stem}__p{page_no:03d}__c{anchor_count:02d}"
+            override = find_override(overrides, file_stem=file_stem, page_no=page_no, y=y0, key=key)
+            if override is not None:
+                if not override.skip:
+                    events.append((y0, 0, "code", fenced(override.code, override.language)))
+                    inserted += 1
+            else:
+                missing += 1
+
+    events.sort(key=lambda item: (item[0], item[1]))
+
+    parts: list[str] = []
+    for _, _, kind, content in events:
+        if not content:
+            continue
+        parts.append(content)
+        parts.append("")
+
+    if not parts:
+        parts.extend(["> 本页未提取到可用文本，请以原始 PDF 为准。", ""])
+
+    return parts, inserted, missing, has_text
+
+
+def convert_pdf(pdf_path: Path, *, overrides: list[CodeOverride]) -> ConversionRecord:
     MARKDOWN_DIR.mkdir(parents=True, exist_ok=True)
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
     title = pdf_path.stem
     safe_stem = slugify_filename(title)
     md_path = MARKDOWN_DIR / f"{safe_stem}.md"
-    asset_dir = ASSETS_DIR / safe_stem
-    asset_dir.mkdir(parents=True, exist_ok=True)
 
-    doc = fitz.open(pdf_path)
+    doc = fitz.open(str(pdf_path))
     meta = parse_filename_meta(pdf_path.name)
-    matrix = fitz.Matrix(image_dpi / 72.0, image_dpi / 72.0)
     text_pages = 0
-    page_image_paths: list[Path] = []
+    inserted_total = 0
+    missing_total = 0
 
     parts: list[str] = [
         f"# {title}",
         "",
         f"- 原始 PDF: [pdfs/{pdf_path.name}]({md_link('../pdfs/' + pdf_path.name)})",
         f"- 页数: {doc.page_count}",
-        f"- 转换方式: 每页 {image_dpi} DPI 原卷面图片 + 折叠的辅助文本层",
+        "- 转换方式: PDF 文本层为主，缺失的题目代码以人工校对的 Markdown 代码块补入。",
         f"- PDF SHA-256: `{sha256_file(pdf_path)}`",
         "",
-        "> 说明: 页面图片是主内容，完整保留原卷面的题干、代码、表格、图形和排版。PDF 文本层可能缺失题目代码，因此提取文本只作为搜索辅助，默认折叠显示。",
+        "> 注: 官方 PDF 中有些代码不是文字层，而是图片或矢量对象。已校对的缺失代码会以 `cpp` 代码块显示；暂未校对的空白锚点不会用图片替代。",
         "",
     ]
 
     for index in range(doc.page_count):
         page_no = index + 1
-        page = doc.load_page(index)
-        image_path = asset_dir / page_image_name(page_no)
-        page_image_paths.append(image_path)
-
-        if overwrite_images or not image_path.exists() or image_path.stat().st_size == 0:
-            pix = page.get_pixmap(matrix=matrix, alpha=False)
-            pix.save(image_path)
-
-        text = clean_text(page.get_text("text", sort=True))
-        if text:
-            text_pages += 1
-        else:
-            text = "本页未提取到可用文本，请以页面图片为准。"
-
-        rel_image = Path("..") / "markdown_assets" / safe_stem / image_path.name
-        parts.extend(
-            [
-                f"## 第 {page_no} 页",
-                "",
-                f"![{title} 第 {page_no} 页]({md_link(rel_image.as_posix())})",
-                "",
-                "<details>",
-                "<summary>提取文本（辅助搜索，可能缺少图片/代码内容）</summary>",
-                "",
-                fenced(text, "text"),
-                "",
-                "</details>",
-                "",
-            ]
+        page_parts, inserted, missing, has_text = render_page_markdown(
+            doc.load_page(index),
+            file_stem=title,
+            page_no=page_no,
+            overrides=overrides,
         )
+        if has_text:
+            text_pages += 1
+        inserted_total += inserted
+        missing_total += missing
 
-    for stale_image in asset_dir.glob("page-*.png"):
-        if stale_image not in page_image_paths:
-            stale_image.unlink()
-    for stale_code_image in asset_dir.glob("code-*.png"):
-        stale_code_image.unlink()
+        parts.extend([f"## 第 {page_no} 页", ""])
+        parts.extend(page_parts)
 
-    md_path.write_text("\n".join(parts).rstrip() + "\n", encoding="utf-8")
     page_count = doc.page_count
     doc.close()
 
+    md_path.write_text("\n".join(parts).rstrip() + "\n", encoding="utf-8")
     return ConversionRecord(
         pdf_path=pdf_path,
         md_path=md_path,
-        asset_dir=asset_dir,
         title=title,
         meta=meta,
         page_count=page_count,
-        image_count=len(page_image_paths),
         text_pages=text_pages,
+        code_blocks_inserted=inserted_total,
+        code_anchors_without_override=missing_total,
     )
 
 
@@ -201,10 +282,10 @@ def generate_index(records: list[ConversionRecord]) -> None:
     lines: list[str] = [
         "# GESP 真题 Markdown 索引",
         "",
-        "本目录按年份、月份、等级列出 `pdfs/` 中每份真题对应的 Markdown 文件。Markdown 以原卷面页面图为主，确保题目代码和图形不丢失；提取文本仅作为折叠的搜索辅助。",
+        "本目录按年份、月份、等级列出 `pdfs/` 中每份真题对应的 Markdown 文件。Markdown 以文本为主，题目代码使用 fenced code block 表示。",
         "",
-        "| 年份 | 月份 | 等级 | Markdown | PDF | 页面图 | 页数 |",
-        "| --- | ---: | ---: | --- | --- | --- | ---: |",
+        "| 年份 | 月份 | 等级 | Markdown | PDF | 页数 | 已补代码块 | 待补代码锚点 |",
+        "| --- | ---: | ---: | --- | --- | ---: | ---: | ---: |",
     ]
     for record in records:
         meta = record.meta
@@ -213,23 +294,24 @@ def generate_index(records: list[ConversionRecord]) -> None:
         level = str(meta.level) if meta.level is not None else ""
         md = f"[{record.title}]({md_link(record.md_path.name)})"
         pdf = f"[PDF]({md_link('../pdfs/' + record.pdf_path.name)})"
-        assets = f"[页面图]({md_link('../markdown_assets/' + record.asset_dir.name + '/')})"
-        lines.append(f"| {year} | {month} | {level} | {md} | {pdf} | {assets} | {record.page_count} |")
+        lines.append(
+            f"| {year} | {month} | {level} | {md} | {pdf} | {record.page_count} | "
+            f"{record.code_blocks_inserted} | {record.code_anchors_without_override} |"
+        )
 
     (MARKDOWN_DIR / "INDEX.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
-def generate_notes(image_dpi: int) -> None:
-    content = f"""# 转换说明
+def generate_notes() -> None:
+    content = """# 转换说明
 
 ## 目标
 
-将 `pdfs/` 目录中的 GESP C++ 真题 PDF 转换为对应的 Markdown 文件，并保证题目代码、图形、表格和原始排版可见。
+将 `pdfs/` 目录中的 GESP C++ 真题 PDF 转换为对应的 Markdown 文本文件。
 
 ## 输出结构
 
 - `markdown/<试卷名>.md`: 每份 PDF 对应一份 Markdown。
-- `markdown_assets/<试卷名>/page-XXX.png`: 每页 PDF 的原卷面页面图。
 - `markdown/INDEX.md`: Markdown 索引。
 - `markdown/CONVERSION_REPORT.md`: 本次转换统计报告。
 
@@ -240,39 +322,33 @@ def generate_notes(image_dpi: int) -> None:
 核心流程:
 
 1. 扫描 `pdfs/*.pdf`。
-2. 使用 PyMuPDF 打开 PDF。
-3. 将每页渲染为 `{image_dpi}` DPI PNG，作为 Markdown 的主内容。
-4. 提取 PDF 文本层，放入折叠区作为搜索辅助。
+2. 使用 PyMuPDF 提取 PDF 文本层，按页面和文本块输出到 Markdown。
+3. 对官方 PDF 中文本层缺失的代码块，使用 `scripts/code_overrides.json` 中人工校对的内容补入 fenced code block。
+4. 生成索引和转换报告，报告中会列出已补代码块数量和仍待补的代码锚点数量。
 
 ## 质量说明
 
-- 页面图片是主内容，完整保留题目代码、表格、图形、公式和版式。
-- PDF 文本层常常缺失代码，尤其是作为图片/矢量对象嵌入的代码块；因此提取文本不再作为主阅读内容。
-- Markdown 中的折叠文本仅用于搜索、复制和粗略定位，若与页面图不一致，以页面图和原始 PDF 为准。
-- 默认复用已存在的页面图，只在页面图缺失或指定 `--overwrite-images` 时重新渲染。
+- Markdown 正文不再使用页面截图或代码截图作为主要内容。
+- 代码块使用 C++ fenced code block，便于 GitHub 预览、搜索和复制。
+- 如果 PDF 中某处代码本身不是文本层，且尚未人工校对补录，脚本不会用图片冒充文本；报告会记录为待补锚点。
 
 ## 复现
 
 ```bash
 py scripts/convert_pdfs_to_markdown.py
 ```
-
-如需强制重新生成所有页面图:
-
-```bash
-py scripts/convert_pdfs_to_markdown.py --overwrite-images
-```
 """
     (MARKDOWN_DIR / "CONVERSION_NOTES.md").write_text(content, encoding="utf-8")
 
 
-def generate_report(records: list[ConversionRecord], image_dpi: int) -> None:
+def generate_report(records: list[ConversionRecord]) -> None:
     records = sorted(records, key=lambda record: sort_key(record.pdf_path))
     pdf_count = len(list(PDF_DIR.glob("*.pdf")))
-    total_images = sum(record.image_count for record in records)
     total_pages = sum(record.page_count for record in records)
     text_pages = sum(record.text_pages for record in records)
-    missing_markdown = sorted({p.stem for p in PDF_DIR.glob("*.pdf")} - {r.md_path.stem for r in records})
+    inserted = sum(record.code_blocks_inserted for record in records)
+    missing = sum(record.code_anchors_without_override for record in records)
+    missing_markdown = sorted({slugify_filename(p.stem) for p in PDF_DIR.glob("*.pdf")} - {r.md_path.stem for r in records})
 
     lines: list[str] = [
         "# 转换报告",
@@ -280,55 +356,57 @@ def generate_report(records: list[ConversionRecord], image_dpi: int) -> None:
         f"- 转换日期: {date.today().isoformat()}",
         f"- PDF 数量: {pdf_count}",
         f"- 试卷 Markdown 数量: {len(records)}",
-        f"- 索引/说明/报告 Markdown 数量: 3",
+        "- 索引/说明/报告 Markdown 数量: 3",
         f"- PDF 总页数: {total_pages}",
-        f"- 页面图数量: {total_images}",
-        f"- 页面图 DPI: {image_dpi}",
         f"- 成功提取文本的页面数: {text_pages}",
+        f"- 已人工补录代码块: {inserted}",
+        f"- 待人工补录代码锚点: {missing}",
         f"- 缺失 Markdown: {'无' if not missing_markdown else ', '.join(missing_markdown)}",
         "",
         "## 明细",
         "",
-        "| 试卷 | 元信息 | 页数 | 文本页 | 页面图 | Markdown |",
-        "| --- | --- | ---: | ---: | ---: | --- |",
+        "| 试卷 | 元信息 | 页数 | 文本页 | 已补代码块 | 待补锚点 | Markdown |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
     ]
 
     for record in records:
         md = f"[{record.md_path.name}]({md_link(record.md_path.name)})"
         lines.append(
             f"| {record.title} | {meta_label(record.meta)} | {record.page_count} | "
-            f"{record.text_pages} | {record.image_count} | {md} |"
+            f"{record.text_pages} | {record.code_blocks_inserted} | "
+            f"{record.code_anchors_without_override} | {md} |"
         )
 
     (MARKDOWN_DIR / "CONVERSION_REPORT.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
-def convert_all(*, image_dpi: int, overwrite_images: bool) -> list[ConversionRecord]:
+def convert_all() -> list[ConversionRecord]:
     pdf_paths = sorted(PDF_DIR.glob("*.pdf"), key=sort_key)
     if not pdf_paths:
         raise SystemExit(f"No PDF files found in {PDF_DIR}")
-    records = [
-        convert_pdf(pdf_path, image_dpi=image_dpi, overwrite_images=overwrite_images)
-        for pdf_path in pdf_paths
-    ]
+    overrides = load_code_overrides()
+    records = [convert_pdf(pdf_path, overrides=overrides) for pdf_path in pdf_paths]
     generate_index(records)
-    generate_notes(image_dpi)
-    generate_report(records, image_dpi)
+    generate_notes()
+    generate_report(records)
     return records
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Convert GESP official PDFs to Markdown.")
-    parser.add_argument("--image-dpi", type=int, default=DEFAULT_IMAGE_DPI, help="PNG render DPI for page images.")
-    parser.add_argument("--overwrite-images", action="store_true", help="Regenerate all page images.")
+    parser = argparse.ArgumentParser(description="Convert GESP official PDFs to text-first Markdown.")
     return parser.parse_args()
 
 
 def main() -> None:
-    args = parse_args()
-    records = convert_all(image_dpi=args.image_dpi, overwrite_images=args.overwrite_images)
+    parse_args()
+    records = convert_all()
     total_pages = sum(record.page_count for record in records)
-    print(f"Converted {len(records)} PDFs ({total_pages} pages) into {MARKDOWN_DIR}")
+    inserted = sum(record.code_blocks_inserted for record in records)
+    missing = sum(record.code_anchors_without_override for record in records)
+    print(
+        f"Converted {len(records)} PDFs ({total_pages} pages) into {MARKDOWN_DIR}. "
+        f"Inserted {inserted} code blocks; {missing} code anchors still need manual text."
+    )
 
 
 if __name__ == "__main__":
